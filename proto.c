@@ -26,6 +26,7 @@
 //#include "toolbox/utils.h"
 
 #define UNCONST(x) ((void*)(uintptr_t)(x))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 static bool DrainBuffers(int fd, struct iovec* iovec, int count) {
   for (;;) {

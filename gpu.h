@@ -19,6 +19,11 @@
 #define STREAMER_GPU_H_
 
 #include <stdbool.h>
+
+// Utility macro for array length
+#ifndef LENGTH
+#define LENGTH(x) (sizeof(x) / sizeof((x)[0]))
+#endif
 #include <stddef.h>
 #include <stdint.h>
 

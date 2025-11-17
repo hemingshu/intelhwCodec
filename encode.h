@@ -23,6 +23,9 @@
 
 #include "colorspace.h"
 
+// Utility macro for array length
+#define LENGTH(x) (sizeof(x) / sizeof((x)[0]))
+
 struct EncodeContext;
 struct GpuContext;
 struct GpuFrame;

@@ -18,6 +18,7 @@
 #include "encode.h"
 
 #include <assert.h>
+#include <sys/time.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -32,8 +33,15 @@
 #include "gpu.h"
 #include "hevc.h"
 #include "proto.h"
-//#include "toolbox/perf.h"
-//#include "toolbox/utils.h"
+
+#define UNCONST(x) ((void*)(uintptr_t)(x))
+
+// Utility function to get current time in microseconds
+static inline unsigned long long MicrosNow(void) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (unsigned long long)tv.tv_sec * 1000000ULL + tv.tv_usec;
+}
 
 struct EncodeContext {
   struct GpuContext* gpu_context;
@@ -195,7 +203,10 @@ static bool InitializeCodecCaps(struct EncodeContext* encode_context) {
       &encode_context->va_hevc_features.bits;
   const typeof(encode_context->va_hevc_block_sizes.bits)* block_sizes_bits =
       &encode_context->va_hevc_block_sizes.bits;
-  //LOG("VAConfigAttribEncHEVCFeatures dump:"
+  (void)features_bits;  // Suppress unused variable warning
+  (void)block_sizes_bits;  // Suppress unused variable warning
+  /*
+  LOG("VAConfigAttribEncHEVCFeatures dump:"
       "\n\tseparate_colour_planes = %u"
       "\n\tscaling_lists = %u"
       "\n\tamp = %u"
@@ -219,7 +230,7 @@ static bool InitializeCodecCaps(struct EncodeContext* encode_context) {
       features_bits->cu_qp_delta, features_bits->weighted_prediction,
       features_bits->transquant_bypass,
       features_bits->deblocking_filter_disable);
-  //LOG("VAConfigAttribEncHEVCBlockSizes dump:"
+  LOG("VAConfigAttribEncHEVCBlockSizes dump:"
       "\n\tlog2_max_coding_tree_block_size_minus3 = %u"
       "\n\tlog2_min_coding_tree_block_size_minus3 = %u"
       "\n\tlog2_min_luma_coding_block_size_minus3 = %u"
@@ -242,6 +253,7 @@ static bool InitializeCodecCaps(struct EncodeContext* encode_context) {
       block_sizes_bits->min_max_transform_hierarchy_depth_intra,
       block_sizes_bits->log2_max_pcm_coding_block_size_minus3,
       block_sizes_bits->log2_min_pcm_coding_block_size_minus3);
+  */
 #endif
 
   return true;

@@ -15,35 +15,14 @@
  * along with streamer.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef STREAMER_PROTO_H_
-#define STREAMER_PROTO_H_
+attribute vec2 position;
 
-#include <assert.h>
-#include <stdint.h>
-#include <stdbool.h>
+varying vec2 texcoord;
 
-// Utility macro for array length
-#ifndef LENGTH
-#define LENGTH(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
-#define PROTO_TYPE_MISC 0
-#define PROTO_TYPE_VIDEO 1
-#define PROTO_TYPE_AUDIO 2
-
-#define PROTO_FLAG_KEYFRAME 1
-
-struct Proto {
-  uint32_t size;
-  uint8_t type;
-  uint8_t flags;
-  uint16_t latency;
-  uint8_t data[];
-};
-
-static_assert(sizeof(struct Proto) == 8 * sizeof(uint8_t),
-              "Suspicious proto struct size");
-
-bool WriteProto(int fd, const struct Proto* proto, const void* data);
-
-#endif  // STREAMER_PROTO_H_
+void main() {
+  texcoord = position;
+  mat4 transform_matrix =
+      mat4(vec4(2.0, 0.0, 0.0, 0.0), vec4(0.0, 2.0, 0.0, 0.0),
+           vec4(0.0, 0.0, 2.0, 0.0), vec4(-1.0, -1.0, 0.0, 1.0));
+  gl_Position = transform_matrix * vec4(position, 0.0, 1.0);
+}

@@ -15,35 +15,19 @@
  * along with streamer.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef STREAMER_PROTO_H_
-#define STREAMER_PROTO_H_
+uniform sampler2D img_input;
+uniform mediump mat3 colorspace;
+uniform mediump vec3 ranges[2];
 
-#include <assert.h>
-#include <stdint.h>
-#include <stdbool.h>
+varying mediump vec2 texcoord;
 
-// Utility macro for array length
-#ifndef LENGTH
-#define LENGTH(x) (sizeof(x) / sizeof((x)[0]))
-#endif
+mediump vec3 rgb2yuv(in mediump vec3 rgb) {
+  mediump vec3 yuv = colorspace * rgb.rgb + vec3(0.0, 0.5, 0.5);
+  return ranges[0] + yuv * ranges[1];
+}
 
-#define PROTO_TYPE_MISC 0
-#define PROTO_TYPE_VIDEO 1
-#define PROTO_TYPE_AUDIO 2
-
-#define PROTO_FLAG_KEYFRAME 1
-
-struct Proto {
-  uint32_t size;
-  uint8_t type;
-  uint8_t flags;
-  uint16_t latency;
-  uint8_t data[];
-};
-
-static_assert(sizeof(struct Proto) == 8 * sizeof(uint8_t),
-              "Suspicious proto struct size");
-
-bool WriteProto(int fd, const struct Proto* proto, const void* data);
-
-#endif  // STREAMER_PROTO_H_
+void main() {
+  mediump vec4 rgb = texture2D(img_input, texcoord);
+  mediump vec3 yuv = rgb2yuv(rgb.rgb);
+  gl_FragColor = vec4(yuv.x, 0.0, 0.0, 1.0);
+}

@@ -37,11 +37,11 @@
 //#include "toolbox/utils.h"
 
 #define _(...) __VA_ARGS__
-#define LOOKUP_FUNCTION(a, b, c)              \
-  gpu_context->b = (a)eglGetProcAddress(#b);  \
-  if (!gpu_context->b) {                      \
-    //LOG("Failed to look up " #b " function"); \
-    goto c;                                   \
+#define LOOKUP_FUNCTION(a, b, c)                \
+  gpu_context->b = (a)eglGetProcAddress(#b);    \
+  if (!gpu_context->b) {                        \
+    /*LOG("Failed to look up " #b " function");*/ \
+    goto c;                                     \
   }
 
 // TODO(mburakov): It should be theoretically possible to do everything in a
@@ -117,7 +117,7 @@ static const char* GlErrorString(GLenum error) {
   static bool CheckBuildable##postfix(GLuint buildable) {            \
     GLenum error = glGetError();                                     \
     if (error != GL_NO_ERROR) {                                      \
-      //LOG(err_msg " (%s)", GlErrorString(error));                    \
+      /*LOG(err_msg " (%s)", GlErrorString(error));*/                  \
       return false;                                                  \
     }                                                                \
     GLint status;                                                    \
@@ -128,7 +128,7 @@ static const char* GlErrorString(GLenum error) {
       char message[log_length];                                      \
       memset(message, 0, sizeof(message));                           \
       logger_fn(buildable, log_length, NULL, message);               \
-      //LOG("%s", message);                                            \
+      /*LOG("%s", message);*/                                          \
       return false;                                                  \
     }                                                                \
     return true;                                                     \
@@ -143,7 +143,7 @@ DEFINE_CHECK_BUILDABLE_FUNCTION(Program, "Failed to link program",
 
 static bool HasExtension(const char* haystack, const char* needle) {
   bool result = !!strstr(haystack, needle);
-  if (!result) //LOG("Unsupported extension %s", needle);
+  //if (!result) LOG("Unsupported extension %s", needle);
   return result;
 }
 
@@ -246,8 +246,7 @@ static bool SetupCommonUniforms(GLuint program, enum YuvColorspace colorspace,
   for (size_t i = 0; i < LENGTH(uniforms); i++) {
     uniforms[i].location = glGetUniformLocation(program, uniforms[i].name);
     if (uniforms[i].location == -1) {
-      //LOG("Failed to locate %s uniform (%s)", uniforms[i].name,
-          GlErrorString(glGetError()));
+      //LOG("Failed to locate %s uniform (%s)", uniforms[i].name, GlErrorString(glGetError()));
       return false;
     }
   }
@@ -283,8 +282,7 @@ struct GpuContext* GpuContextCreate(enum YuvColorspace colorspace,
 
   const char* egl_ext = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
   if (!egl_ext) {
-    //LOG("Failed to query platformless egl extensions (%s)",
-        EglErrorString(eglGetError()));
+    //LOG("Failed to query platformless egl extensions (%s)", EglErrorString(eglGetError()));
     goto rollback_gpu_context;
   }
 
@@ -367,8 +365,7 @@ struct GpuContext* GpuContextCreate(enum YuvColorspace colorspace,
 
   if (!eglMakeCurrent(gpu_context->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
                       gpu_context->context)) {
-    //LOG("Failed to make egl context current (%s)",
-        EglErrorString(eglGetError()));
+    //LOG("Failed to make egl context current (%s)", EglErrorString(eglGetError()));
     goto rollback_context;
   }
 
@@ -403,8 +400,7 @@ struct GpuContext* GpuContextCreate(enum YuvColorspace colorspace,
   gpu_context->sample_offsets =
       glGetUniformLocation(gpu_context->program_chroma, "sample_offsets");
   if (gpu_context->sample_offsets == -1) {
-    //LOG("Failed to find sample_offsets uniform (%s)",
-        GlErrorString(glGetError()));
+    //LOG("Failed to find sample_offsets uniform (%s)", GlErrorString(glGetError()));
     goto rollback_program_chroma;
   }
 
@@ -463,20 +459,17 @@ static void DumpEglImageParams(const EGLAttrib* attribs) {
       case EGL_DMA_BUF_PLANE0_FD_EXT:
       case EGL_DMA_BUF_PLANE1_FD_EXT:
       case EGL_DMA_BUF_PLANE2_FD_EXT:
-        //LOG("\tEGL_DMA_BUF_PLANE%ld_FD_EXT: %ld",
-            (attribs[0] - EGL_DMA_BUF_PLANE0_FD_EXT) / 3, attribs[1]);
+        //LOG("\tEGL_DMA_BUF_PLANE%ld_FD_EXT: %ld", (attribs[0] - EGL_DMA_BUF_PLANE0_FD_EXT) / 3, attribs[1]);
         break;
       case EGL_DMA_BUF_PLANE0_OFFSET_EXT:
       case EGL_DMA_BUF_PLANE1_OFFSET_EXT:
       case EGL_DMA_BUF_PLANE2_OFFSET_EXT:
-        //LOG("\tEGL_DMA_BUF_PLANE%ld_OFFSET_EXT: %ld",
-            (attribs[0] - EGL_DMA_BUF_PLANE0_OFFSET_EXT) / 3, attribs[1]);
+        //LOG("\tEGL_DMA_BUF_PLANE%ld_OFFSET_EXT: %ld", (attribs[0] - EGL_DMA_BUF_PLANE0_OFFSET_EXT) / 3, attribs[1]);
         break;
       case EGL_DMA_BUF_PLANE0_PITCH_EXT:
       case EGL_DMA_BUF_PLANE1_PITCH_EXT:
       case EGL_DMA_BUF_PLANE2_PITCH_EXT:
-        //LOG("\tEGL_DMA_BUF_PLANE%ld_PITCH_EXT: %ld",
-            (attribs[0] - EGL_DMA_BUF_PLANE0_PITCH_EXT) / 3, attribs[1]);
+        //LOG("\tEGL_DMA_BUF_PLANE%ld_PITCH_EXT: %ld", (attribs[0] - EGL_DMA_BUF_PLANE0_PITCH_EXT) / 3, attribs[1]);
         break;
       case EGL_DMA_BUF_PLANE3_FD_EXT:
         //LOG("\tEGL_DMA_BUF_PLANE3_FD_EXT: %ld", attribs[1]);
@@ -495,9 +488,7 @@ static void DumpEglImageParams(const EGLAttrib* attribs) {
       case EGL_DMA_BUF_PLANE2_MODIFIER_HI_EXT:
       case EGL_DMA_BUF_PLANE3_MODIFIER_LO_EXT:
       case EGL_DMA_BUF_PLANE3_MODIFIER_HI_EXT:
-        //LOG("\tEGL_DMA_BUF_PLANE%ld_MODIFIER_%s_EXT: 0x%08lx",
-            (attribs[0] - EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT) / 2,
-            attribs[0] & 1 ? "LO" : "HI", attribs[1]);
+        //LOG("\tEGL_DMA_BUF_PLANE%ld_MODIFIER_%s_EXT: 0x%08lx", (attribs[0] - EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT) / 2, attribs[0] & 1 ? "LO" : "HI", attribs[1]);
         break;
     }
   }
@@ -507,15 +498,13 @@ static bool IsFourccSupported(struct GpuContext* gpu_context, uint32_t fourcc) {
   EGLint num_formats;
   if (!gpu_context->eglQueryDmaBufFormatsEXT(gpu_context->display, 0, NULL,
                                              &num_formats)) {
-    //LOG("Faield to get number of supported dmabuf formats (%s)",
-        EglErrorString(eglGetError()));
+    //LOG("Faield to get number of supported dmabuf formats (%s)", EglErrorString(eglGetError()));
     return false;
   }
   EGLint formats[num_formats];
   if (!gpu_context->eglQueryDmaBufFormatsEXT(gpu_context->display, num_formats,
                                              formats, &num_formats)) {
-    //LOG("Failed to get supported dmabuf formats (%s)",
-        EglErrorString(eglGetError()));
+    //LOG("Faield to query supported dmabuf formats (%s)", EglErrorString(eglGetError()));
     return false;
   }
   for (int i = 0; i < num_formats; i++) {
@@ -534,8 +523,7 @@ static bool IsModifierSupported(struct GpuContext* gpu_context, uint32_t fourcc,
   EGLint num_modifiers;
   if (!gpu_context->eglQueryDmaBufModifiersEXT(
           gpu_context->display, (GLint)fourcc, 0, NULL, NULL, &num_modifiers)) {
-    //LOG("Failed to get number of supported dmabuf modifiers (%s)",
-        EglErrorString(eglGetError()));
+    //LOG("Faield to get number of supported dmabuf modifiers (%s)", EglErrorString(eglGetError()));
     return false;
   }
   EGLuint64KHR modifiers[num_modifiers];
@@ -543,19 +531,16 @@ static bool IsModifierSupported(struct GpuContext* gpu_context, uint32_t fourcc,
   if (!gpu_context->eglQueryDmaBufModifiersEXT(
           gpu_context->display, (GLint)fourcc, num_modifiers, modifiers,
           external_only, &num_modifiers)) {
-    //LOG("Failed to get supported dmabuf modifiers (%s)",
-        EglErrorString(eglGetError()));
+    //LOG("Faield to query supported dmabuf modifiers (%s)", EglErrorString(eglGetError()));
     return false;
   }
   for (int i = 0; i < num_modifiers; i++) {
     if (modifiers[i] == modifier && !external_only[i]) return true;
   }
-  //LOG("Modifier 0x%016lx for format %.4s is unsupported by egl", modifier,
-      (const char*)&fourcc);
+  //LOG("Modifier 0x%016lx for format %.4s is unsupported by egl", modifier, (const char*)&fourcc);
   //LOG("Supported modifiers for format %.4s are:", (const char*)&fourcc);
   for (int i = 0; i < num_modifiers; i++) {
-    //LOG("\t0x%016lx%s", modifiers[i],
-        external_only[i] ? " (external only)" : "");
+    //LOG("\t0x%016lx%s", modifiers[i], external_only[i] ? " (external only)" : "");
   }
   return false;
 }
