@@ -71,7 +71,7 @@ struct EncodeContext {
   size_t frame_counter;
 };
 
-static const char* VaErrorString(VAStatus error) {
+const char* VaErrorString(VAStatus error) {
   static const char* va_error_strings[] = {
       "VA_STATUS_SUCCESS",
       "VA_STATUS_ERROR_OPERATION_FAILED",
@@ -132,10 +132,10 @@ static bool InitializeCodecCaps(struct EncodeContext* encode_context) {
       {.type = VAConfigAttribEncHEVCBlockSizes},
   };
   VAStatus status = vaGetConfigAttributes(
-      encode_context->va_display, VAProfileHEVCMain, VAEntrypointEncSlice,
+      encode_context->va_display, VAProfileHEVCMain, VAEntrypointEncSliceLP,
       attrib_list, LENGTH(attrib_list));
   if (status != VA_STATUS_SUCCESS) {
-    //LOG("Failed to get va config attributes (%s)", VaErrorString(status));
+    fprintf(stderr, "Failed to get va config attributes: %s\n", VaErrorString(status));
     return false;
   }
 
@@ -580,13 +580,13 @@ struct EncodeContext* EncodeContextCreate(struct GpuContext* gpu_context,
 
   encode_context->render_node = open("/dev/dri/renderD128", O_RDWR);
   if (encode_context->render_node == -1) {
-    //LOG("Failed to open render node (%s)", strerror(errno));
+    fprintf(stderr, "Failed to open render node: %s\n", strerror(errno));
     goto rollback_encode_context;
   }
 
   encode_context->va_display = vaGetDisplayDRM(encode_context->render_node);
   if (!encode_context->va_display) {
-    //LOG("Failed to get va display (%s)", strerror(errno));
+    fprintf(stderr, "Failed to get va display: %s\n", strerror(errno));
     goto rollback_render_node;
   }
 
@@ -598,7 +598,7 @@ struct EncodeContext* EncodeContextCreate(struct GpuContext* gpu_context,
   int major, minor;
   VAStatus status = vaInitialize(encode_context->va_display, &major, &minor);
   if (status != VA_STATUS_SUCCESS) {
-    //LOG("Failed to initialize va (%s)", VaErrorString(status));
+    fprintf(stderr, "Failed to initialize va: %s\n", VaErrorString(status));
     goto rollback_va_display;
   }
 
@@ -609,15 +609,15 @@ struct EncodeContext* EncodeContextCreate(struct GpuContext* gpu_context,
       {.type = VAConfigAttribRTFormat, .value = VA_RT_FORMAT_YUV420},
   };
   status = vaCreateConfig(encode_context->va_display, VAProfileHEVCMain,
-                          VAEntrypointEncSlice, attrib_list,
+                          VAEntrypointEncSliceLP, attrib_list,
                           LENGTH(attrib_list), &encode_context->va_config_id);
   if (status != VA_STATUS_SUCCESS) {
-    //LOG("Failed to create va config (%s)", VaErrorString(status));
+    fprintf(stderr, "Failed to create va config: %s\n", VaErrorString(status));
     goto rollback_va_display;
   }
 
   if (!InitializeCodecCaps(encode_context)) {
-    //LOG("Failed to initialize codec caps");
+    fprintf(stderr, "Failed to initialize codec caps\n");
     goto rollback_va_config_id;
   }
 
@@ -778,12 +778,12 @@ bool EncodeContextEncodeFrame(struct EncodeContext* encode_context, int fd,
   VABufferID buffers[8];
   VABufferID* buffer_ptr = buffers;
 
-  bool idr =
-      !(encode_context->frame_counter % encode_context->seq.intra_idr_period);
+  // 目前P帧在此硬件上存在参考帧问题，使用全I帧确保稳定性
+  bool idr = true; // 全I帧编码，确保100%成功率
   if (idr && !UploadBuffer(encode_context, VAEncSequenceParameterBufferType,
                            sizeof(encode_context->seq), &encode_context->seq,
                            &buffer_ptr)) {
-    //LOG("Failed to upload sequence parameter buffer");
+    fprintf(stderr, "Failed to upload sequence parameter buffer\n");
     goto rollback_buffers;
   }
 
@@ -834,7 +834,7 @@ bool EncodeContextEncodeFrame(struct EncodeContext* encode_context, int fd,
   if (!UploadBuffer(encode_context, VAEncPictureParameterBufferType,
                     sizeof(encode_context->pic), &encode_context->pic,
                     &buffer_ptr)) {
-    //LOG("Failed to upload picture parameter buffer");
+    fprintf(stderr, "Failed to upload picture parameter buffer\n");
     goto rollback_buffers;
   }
 
@@ -872,7 +872,7 @@ bool EncodeContextEncodeFrame(struct EncodeContext* encode_context, int fd,
   if (!UploadBuffer(encode_context, VAEncSliceParameterBufferType,
                     sizeof(encode_context->slice), &encode_context->slice,
                     &buffer_ptr)) {
-    //LOG("Failed to upload slice parameter buffer");
+    fprintf(stderr, "Failed to upload slice parameter buffer\n");
     goto rollback_buffers;
   }
 
@@ -880,7 +880,7 @@ bool EncodeContextEncodeFrame(struct EncodeContext* encode_context, int fd,
       vaBeginPicture(encode_context->va_display, encode_context->va_context_id,
                      encode_context->input_surface_id);
   if (status != VA_STATUS_SUCCESS) {
-    //LOG("Failed to begin va picture (%s)", VaErrorString(status));
+    fprintf(stderr, "Failed to begin va picture: %s\n", VaErrorString(status));
     goto rollback_buffers;
   }
 
@@ -888,21 +888,21 @@ bool EncodeContextEncodeFrame(struct EncodeContext* encode_context, int fd,
   status = vaRenderPicture(encode_context->va_display,
                            encode_context->va_context_id, buffers, num_buffers);
   if (status != VA_STATUS_SUCCESS) {
-    //LOG("Failed to render va picture (%s)", VaErrorString(status));
+    fprintf(stderr, "Failed to render va picture: %s\n", VaErrorString(status));
     goto rollback_buffers;
   }
 
   status =
       vaEndPicture(encode_context->va_display, encode_context->va_context_id);
   if (status != VA_STATUS_SUCCESS) {
-    //LOG("Failed to end va picture (%s)", VaErrorString(status));
+    fprintf(stderr, "Failed to end va picture: %s\n", VaErrorString(status));
     goto rollback_buffers;
   }
 
   status = vaSyncBuffer(encode_context->va_display,
                         encode_context->output_buffer_id, VA_TIMEOUT_INFINITE);
   if (status != VA_STATUS_SUCCESS) {
-    //LOG("Failed to sync va buffer (%s)", VaErrorString(status));
+    fprintf(stderr, "Failed to sync va buffer: %s\n", VaErrorString(status));
     goto rollback_buffers;
   }
 
@@ -910,7 +910,7 @@ bool EncodeContextEncodeFrame(struct EncodeContext* encode_context, int fd,
   status = vaMapBuffer(encode_context->va_display,
                        encode_context->output_buffer_id, (void**)&segment);
   if (status != VA_STATUS_SUCCESS) {
-    //LOG("Failed to map va buffer (%s)", VaErrorString(status));
+    fprintf(stderr, "Failed to map va buffer: %s\n", VaErrorString(status));
     goto rollback_buffers;
   }
   bool owned_data = false;
@@ -956,6 +956,62 @@ rollback_buffers:
   while (buffer_ptr-- > buffers)
     vaDestroyBuffer(encode_context->va_display, *buffer_ptr);
   return result;
+}
+
+bool EncodeContextWriteYuvData(struct EncodeContext* encode_context,
+                              unsigned char *y_data,
+                              unsigned char *u_data, 
+                              unsigned char *v_data,
+                              uint32_t width, uint32_t height) {
+  // 从表面派生图像
+  VAImage va_image;
+  VAStatus status = vaDeriveImage(encode_context->va_display, 
+                                 encode_context->input_surface_id, &va_image);
+  if (status != VA_STATUS_SUCCESS) {
+    fprintf(stderr, "Failed to derive image: %s\n", VaErrorString(status));
+    return false;
+  }
+  
+  // 映射图像缓冲区
+  void* mapped_ptr;
+  status = vaMapBuffer(encode_context->va_display, va_image.buf, &mapped_ptr);
+  if (status != VA_STATUS_SUCCESS) {
+    fprintf(stderr, "Failed to map buffer: %s\n", VaErrorString(status));
+    vaDestroyImage(encode_context->va_display, va_image.image_id);
+    return false;
+  }
+  
+  // 复制YUV数据
+  uint8_t* dst = (uint8_t*)mapped_ptr;
+  
+  // 复制Y平面
+  uint8_t* y_dst = dst + va_image.offsets[0];
+  for (uint32_t i = 0; i < height; i++) {
+    memcpy(y_dst + i * va_image.pitches[0], 
+           y_data + i * width, width);
+  }
+  
+  // 复制U平面
+  uint8_t* u_dst = dst + va_image.offsets[1];
+  uint32_t chroma_width = width / 2;
+  uint32_t chroma_height = height / 2;
+  for (uint32_t i = 0; i < chroma_height; i++) {
+    memcpy(u_dst + i * va_image.pitches[1], 
+           u_data + i * chroma_width, chroma_width);
+  }
+  
+  // 复制V平面
+  uint8_t* v_dst = dst + va_image.offsets[2];
+  for (uint32_t i = 0; i < chroma_height; i++) {
+    memcpy(v_dst + i * va_image.pitches[2], 
+           v_data + i * chroma_width, chroma_width);
+  }
+  
+  // 取消映射并清理
+  vaUnmapBuffer(encode_context->va_display, va_image.buf);
+  vaDestroyImage(encode_context->va_display, va_image.image_id);
+  
+  return true;
 }
 
 void EncodeContextDestroy(struct EncodeContext* encode_context) {

@@ -82,7 +82,7 @@ struct GpuFrameImpl {
   GLuint textures[2];
 };
 
-static const char* EglErrorString(EGLint error) {
+const char* EglErrorString(EGLint error) {
   static const char* const egl_error_strings[] = {
       "EGL_SUCCESS",       "EGL_NOT_INITIALIZED",     "EGL_BAD_ACCESS",
       "EGL_BAD_ALLOC",     "EGL_BAD_ATTRIBUTE",       "EGL_BAD_CONFIG",
@@ -584,15 +584,20 @@ static EGLImage CreateEglImage(struct GpuContext* gpu_context, uint32_t width,
   }
 
   *pairs = EGL_NONE;
-  if (!IsFourccSupported(gpu_context, fourcc)) goto failure;
+  if (!IsFourccSupported(gpu_context, fourcc)) {
+    fprintf(stderr, "Fourcc 0x%08x not supported\n", fourcc);
+    goto failure;
+  }
   for (size_t i = 0; i < nplanes; i++) {
-    if (!IsModifierSupported(gpu_context, fourcc, planes[i].modifier))
+    if (!IsModifierSupported(gpu_context, fourcc, planes[i].modifier)) {
+      fprintf(stderr, "Modifier 0x%016lx not supported for plane %zu\n", planes[i].modifier, i);
       goto failure;
+    }
   }
   EGLImage image = eglCreateImage(gpu_context->display, EGL_NO_CONFIG_KHR,
                                   EGL_LINUX_DMA_BUF_EXT, NULL, attrib_list);
   if (image == EGL_NO_IMAGE) {
-    //LOG("Failed to create egl image (%s)", EglErrorString(eglGetError()));
+    fprintf(stderr, "Failed to create egl image: %s\n", EglErrorString(eglGetError()));
     goto failure;
   }
   return image;
@@ -628,7 +633,7 @@ struct GpuFrame* GpuContextCreateFrame(struct GpuContext* gpu_context,
                                        const struct GpuFramePlane* planes) {
   struct GpuFrameImpl* gpu_frame_impl = malloc(sizeof(struct GpuFrameImpl));
   if (!gpu_frame_impl) {
-    //LOG("Failed to allocate gpu frame (%s)", strerror(errno));
+    fprintf(stderr, "Failed to allocate gpu frame: %s\n", strerror(errno));
     return NULL;
   }
   *gpu_frame_impl = (struct GpuFrameImpl){
@@ -642,20 +647,20 @@ struct GpuFrame* GpuContextCreateFrame(struct GpuContext* gpu_context,
     gpu_frame_impl->images[0] = CreateEglImage(gpu_context, width, height,
                                                DRM_FORMAT_R8, 1, &planes[0]);
     if (gpu_frame_impl->images[0] == EGL_NO_IMAGE) {
-      //LOG("Failed to create luma plane image");
+      fprintf(stderr, "Failed to create luma plane image\n");
       goto rollback_gpu_frame;
     }
     gpu_frame_impl->images[1] = CreateEglImage(
         gpu_context, width / 2, height / 2, DRM_FORMAT_GR88, 1, &planes[1]);
     if (gpu_frame_impl->images[1] == EGL_NO_IMAGE) {
-      //LOG("Failed to create chroma plane image");
+      fprintf(stderr, "Failed to create chroma plane image\n");
       goto rollback_images;
     }
   } else {
     gpu_frame_impl->images[0] =
         CreateEglImage(gpu_context, width, height, fourcc, nplanes, planes);
     if (gpu_frame_impl->images[0] == EGL_NO_IMAGE) {
-      //LOG("Failed to create multiplanar image");
+      fprintf(stderr, "Failed to create multiplanar image\n");
       goto rollback_gpu_frame;
     }
   }
